@@ -1,75 +1,135 @@
-import 'dart:convert';
+import 'package:assignment_project/firebase_options.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MaterialApp(
+    title: 'Flutter Firebase Form',
+    theme: ThemeData(
+      primarySwatch: Colors.blue,
+    ),
+    home: const MyForm(),
+  ));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyForm extends StatefulWidget {
+  const MyForm({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Top 10 Songs',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const TopSongsPage(),
-    );
-  }
+  _MyFormState createState() => _MyFormState();
 }
 
-class TopSongsPage extends StatefulWidget {
-  const TopSongsPage({super.key});
-
-  @override
-  _TopSongsPageState createState() => _TopSongsPageState();
-}
-
-class _TopSongsPageState extends State<TopSongsPage> {
-  List<dynamic> _songs = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchTopSongs();
-  }
-
-  Future<void> _fetchTopSongs() async {
-    final response = await http.get(
-        Uri.parse('https://itunes.apple.com/us/rss/topsongs/limit=10/json'));
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body);
-      setState(() {
-        _songs = data['feed']['entry'];
-      });
-    } else {
-      throw Exception('Failed to load top songs');
-    }
-  }
+class _MyFormState extends State<MyForm> {
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Top 10 Songs'),
+        title: const Text('Flutter Firebase Form'),
       ),
-      body: ListView.builder(
-        itemCount: _songs.length,
-        itemBuilder: (context, index) {
-          final song = _songs[index];
-          final String title = song['title']['label'];
-          final String albumName = song['im:collection']['im:name']['label'];
-          final String imageUrl = song['im:image'][2]['label'];
-          return ListTile(
-            leading: Image.network(imageUrl),
-            title: Text(title),
-            subtitle: Text(albumName),
-          );
-        },
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a name';
+                      }
+                      return null;
+                    },
+                  ),
+                  TextFormField(
+                    controller: _weightController,
+                    decoration: const InputDecoration(labelText: 'Weight'),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter an Weight';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16.0),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        _saveData();
+                      }
+                    },
+                    child: const Text('Submit'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildSavedDataWidget(),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildSavedDataWidget() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('userData')
+          .doc('user')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        }
+
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+
+        if (!snapshot.hasData || snapshot.data!.data() == null) {
+          return const Text('No data available');
+        }
+
+        var data = snapshot.data!.data() as Map<String, dynamic>;
+        var name = data['name'];
+        var weight = data['weight'];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: $name'),
+            Text('Weight: $weight'),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _saveData() async {
+    try {
+      await FirebaseFirestore.instance.collection('userData').doc('user').set({
+        'name': _nameController.text,
+        'weight': int.parse(_weightController.text),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data saved successfully')));
+    } catch (error) {
+      print('Error saving data: $error');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Failed to save data')));
+    }
   }
 }
