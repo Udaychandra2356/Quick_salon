@@ -44,38 +44,39 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDoISUGgRvxRzBngymgFjxpv-DjxpOGZNo',
-    appId: '1:202194120197:web:e42ea9ee0c97fa17d7366c',
-    messagingSenderId: '202194120197',
-    projectId: 'ug-467',
-    authDomain: 'ug-467.firebaseapp.com',
-    storageBucket: 'ug-467.appspot.com',
-    measurementId: 'G-HK0MZDP57W',
+    apiKey: 'AIzaSyAL6lEZgZ7itIIvngQA0QR5Q_60pNzq9po',
+    appId: '1:443120906046:web:4d5c46451230debc38866f',
+    messagingSenderId: '443120906046',
+    projectId: 'finalproject467',
+    authDomain: 'finalproject467.firebaseapp.com',
+    storageBucket: 'finalproject467.appspot.com',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB7nOF59QSVJitELBgcZFuEf9jtJhKrar8',
-    appId: '1:202194120197:android:075567e2de74d76dd7366c',
-    messagingSenderId: '202194120197',
-    projectId: 'ug-467',
-    storageBucket: 'ug-467.appspot.com',
+    apiKey: 'AIzaSyBHHNcZ5EWN6roJQ9kAZM4AIMOSAp1sG_Y',
+    appId: '1:443120906046:android:b1c9b06d1656832538866f',
+    messagingSenderId: '443120906046',
+    projectId: 'finalproject467',
+    storageBucket: 'finalproject467.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC7aFwuPzZR5u4yYXNCElVRgXX_9TbMZBE',
-    appId: '1:202194120197:ios:0cc275e150a59fd8d7366c',
-    messagingSenderId: '202194120197',
-    projectId: 'ug-467',
-    storageBucket: 'ug-467.appspot.com',
+    apiKey: 'AIzaSyAaq-g_SU6AqBRbeuiW7O8MLIVwlX8AMbc',
+    appId: '1:443120906046:ios:20daf88b6987155d38866f',
+    messagingSenderId: '443120906046',
+    projectId: 'finalproject467',
+    storageBucket: 'finalproject467.appspot.com',
+    iosClientId: '443120906046-an4d2a0prhi9nbdddl3htsqqqqk1seh8.apps.googleusercontent.com',
     iosBundleId: 'com.example.assignmentProject',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC7aFwuPzZR5u4yYXNCElVRgXX_9TbMZBE',
-    appId: '1:202194120197:ios:0047d00a493334f8d7366c',
-    messagingSenderId: '202194120197',
-    projectId: 'ug-467',
-    storageBucket: 'ug-467.appspot.com',
+    apiKey: 'AIzaSyAaq-g_SU6AqBRbeuiW7O8MLIVwlX8AMbc',
+    appId: '1:443120906046:ios:dd3b80a842de327f38866f',
+    messagingSenderId: '443120906046',
+    projectId: 'finalproject467',
+    storageBucket: 'finalproject467.appspot.com',
+    iosClientId: '443120906046-sl0kvds84pm7bfctjc7q80mebgkumg9h.apps.googleusercontent.com',
     iosBundleId: 'com.example.assignmentProject.RunnerTests',
   );
 }
