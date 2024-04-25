@@ -51,7 +51,7 @@ class HomeScreen extends StatelessWidget {
               height: 300,
             ),
             Text(
-              'Welcome!',
+              'Welcome to Quick Salon!',
               style: Theme.of(context).textTheme.displaySmall,
             ),
             const SignOutButton(),
