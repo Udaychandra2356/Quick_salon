@@ -1,12 +1,28 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart';
-import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart';
 import 'package:flutter/material.dart';
-
+import 'package:fluttertoast/fluttertoast.dart';
 import 'home.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
+
+  Future<void> _createUserInFirestore(User user) async {
+    final userDoc =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userSnapshot = await userDoc.get();
+    if (!userSnapshot.exists) {
+      final userData = {
+        'uid': user.uid,
+        'email': user.email,
+        'displayName': user.displayName,
+        'photoURL': user.photoURL,
+        'appointments': []
+      };
+      await userDoc.set(userData);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,48 +31,28 @@ class AuthGate extends StatelessWidget {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return SignInScreen(
-            providers: [
-              EmailAuthProvider(),
-              GoogleProvider(
-                  clientId:
-                      "443120906046-ksomkp1s09e592nb0smn2v8n3u65dbg9.apps.googleusercontent.com"),
+            providers: [EmailAuthProvider()],
+            actions: [
+              AuthStateChangeAction<SignedIn>((context, state) {
+                Navigator.pushReplacementNamed(context, '/home');
+              }),
             ],
-            headerBuilder: (context, constraints, shrinkOffset) {
-              return Padding(
-                padding: const EdgeInsets.all(20),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Image.asset('flutterfire_300x.png'),
-                ),
-              );
-            },
-            subtitleBuilder: (context, action) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: action == AuthAction.signIn
-                    ? const Text('Welcome to FlutterFire, please sign in!')
-                    : const Text('Welcome to Flutterfire, please sign up!'),
-              );
-            },
-            footerBuilder: (context, action) {
-              return const Padding(
-                padding: EdgeInsets.only(top: 16),
-                child: Text(
-                  'By signing in, you agree to our terms and conditions.',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              );
-            },
-            sideBuilder: (context, shrinkOffset) {
-              return Padding(
-                padding: const EdgeInsets.all(20),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Image.asset('flutterfire_300x.png'),
-                ),
-              );
-            },
           );
+        } else {
+          final user = snapshot.data!;
+
+          _createUserInFirestore(user).catchError((error) {
+            // Show a success message
+            Fluttertoast.showToast(
+              msg: 'Failed to add User to Users: $error',
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.BOTTOM,
+              timeInSecForIosWeb: 1,
+              backgroundColor: Colors.black,
+              textColor: Colors.red,
+              fontSize: 16.0,
+            ).then((value) => {});
+          });
         }
 
         return HomePage();
