@@ -1,7 +1,7 @@
+import 'package:assignment_project/salon_onboarding_screen.dart';
 import 'package:flutter/material.dart';
 import 'auth_gate.dart';
 import 'home.dart';
-import 'salon_list.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -12,14 +12,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      initialRoute: '/', // Default route
+      initialRoute: '/',
       routes: {
-        '/': (context) => const AuthGate(), // Auth gate to decide where to go
-        '/home': (context) => HomePage(), // Home page
-        // '/salons': (context) => SalonListPage(), // Salon list page
-        // Add other routes as needed
+        '/': (context) => const AuthGate(),
+        '/home': (context) => HomePage(),
+        '/onboarding': (context) => const SalonOnboardingScreen(),
       },
-      debugShowCheckedModeBanner: false, // Optional: Hide the debug banner
+      debugShowCheckedModeBanner: false,
     );
   }
 }
