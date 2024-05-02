@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'salon_detail.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'salon_detail.dart';
 
 class SalonByLocationPage extends StatelessWidget {
   final String locationName;
@@ -11,7 +11,7 @@ class SalonByLocationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Salons in $locationName"),
+        title: const Text('Salons'),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -20,15 +20,15 @@ class SalonByLocationPage extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(child: Text("No salons found in $locationName."));
+            return Center(child: Text('No salons found in $locationName.'));
           }
 
           return ListView.builder(
@@ -40,17 +40,14 @@ class SalonByLocationPage extends StatelessWidget {
               return ListTile(
                 title: Text(salon['name']),
                 subtitle: Text(salon['address']),
-                trailing: Text("Rating: ${salon['rating']}"),
+                trailing: Text('Rating: ${salon['rating']}'),
                 onTap: () {
-                  Navigator.of(context).push(
+                  Navigator.push(
+                    context,
                     MaterialPageRoute(
-                      builder: (context) => EmptyDetailsPage(
-                        title: 'hello',
-                        // salon: salon,
-                      ),
+                      builder: (context) => SalonDetailsPage(salon: salon),
                     ),
                   );
-                  // Navigate to a Salon Detail page or perform other actions
                 },
               );
             },
