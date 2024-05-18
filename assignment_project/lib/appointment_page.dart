@@ -67,7 +67,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
           final timestamp = appointmentData['dateTime'] as Timestamp?;
           final dateTime = timestamp?.toDate();
 
-          // Check for null values before comparing dates
           return isUpcoming
               ? dateTime != null && dateTime.isAfter(currentDate)
               : dateTime != null && dateTime.isBefore(currentDate);
@@ -112,8 +111,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       ? DateFormat('yyyy-MM-dd HH:mm').format(dateTime)
                       : 'Unknown Date/Time';
 
-                  return Text(
-                    '$salonName - $formattedDate',
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(salonName),
+                      Text(formattedDate),
+                    ],
                   );
                 },
               ),

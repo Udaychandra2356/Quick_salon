@@ -1,6 +1,39 @@
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+class CustomTimePickerDialog extends StatelessWidget {
+  final ValueChanged<TimeOfDay> onTimeSelected;
+
+  CustomTimePickerDialog({required this.onTimeSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    // Generating list of times with 30 mins intervals from 9:00 am to 5:00 pm
+    final times = List.generate(
+      16, // 16 half hours slots from 9:00 am to 5:00 pm
+      (index) {
+        final hour = 9 + (index / 2).floor();
+        final minute = index.isEven ? 0 : 30;
+        return TimeOfDay(hour: hour, minute: minute);
+      },
+    );
+
+    return SimpleDialog(
+      title: Text("Select Time"),
+      children: times.map((time) {
+        return SimpleDialogOption(
+          onPressed: () {
+            onTimeSelected(time);
+            Navigator.pop(context);
+          },
+          child: Text(time.format(context)),
+        );
+      }).toList(),
+    );
+  }
+}
 
 class BookAppointmentPage extends StatefulWidget {
   final Map<String, dynamic> salon;
@@ -31,16 +64,18 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   }
 
   Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? pickedTime = await showTimePicker(
+    await showDialog(
       context: context,
-      initialTime: TimeOfDay.now(),
+      builder: (context) {
+        return CustomTimePickerDialog(
+          onTimeSelected: (TimeOfDay time) {
+            setState(() {
+              selectedTime = time;
+            });
+          },
+        );
+      },
     );
-
-    if (pickedTime != null) {
-      setState(() {
-        selectedTime = pickedTime;
-      });
-    }
   }
 
   Future<void> _bookAppointment() async {
@@ -63,7 +98,17 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       return;
     }
 
-    // Combine the selected date and time
+    // Ensure the selected time is within business hours
+    if (selectedTime!.hour < 9 || selectedTime!.hour >= 17) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Appointments can only be booked between 9:00 am and 5:00 pm.'),
+        ),
+      );
+      return;
+    }
+
     final appointmentDateTime = DateTime(
       selectedDate!.year,
       selectedDate!.month,
@@ -71,6 +116,22 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       selectedTime!.hour,
       selectedTime!.minute,
     );
+
+    // Check for conflicting appointments at this time slot
+    final appointmentConflict = await FirebaseFirestore.instance
+        .collection('appointments')
+        .where('salonId', isEqualTo: widget.salon['id'])
+        .where('dateTime', isEqualTo: Timestamp.fromDate(appointmentDateTime))
+        .get();
+
+    if (appointmentConflict.docs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('An appointment is already booked for this time slot.'),
+        ),
+      );
+      return;
+    }
 
     final appointmentData = {
       'salonId': widget.salon['id'],
@@ -82,9 +143,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         FirebaseFirestore.instance.collection('appointments').doc();
     await appointmentRef.set(appointmentData);
 
-    final userDoc =
-        FirebaseFirestore.instance.collection('users').doc(user.uid);
-    await userDoc.update({
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
       'appointments': FieldValue.arrayUnion([appointmentRef.id]),
     });
 
@@ -110,7 +169,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
           children: [
             Text(
               'Salon: ${widget.salon['name']}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             const Text(

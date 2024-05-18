@@ -1,18 +1,20 @@
-import 'package:assignment_project/appointment_page.dart';
-import 'package:assignment_project/salon_onboarding_screen.dart';
-import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:flutter/material.dart';
+import 'salon_onboarding_screen.dart';
+import 'appointment_page.dart';
+import 'SalonByLocationPage.dart';
+import 'package:firebase_ui_auth/firebase_ui_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'SalonByLocationPage.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
+
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+  int _currentIndex = 0;
   bool isLoading = true;
   String locationName = "Unknown";
   String errorMessage = "";
@@ -24,58 +26,43 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _determineLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Check if location services are enabled
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      // If location services are disabled, open the app settings
-      bool openAppSettings = await Geolocator.openLocationSettings();
-      if (!openAppSettings) {
-        setState(() {
-          errorMessage =
-              "Location services are disabled. Please enable them in your device settings.";
-        });
-        return;
-      }
-    }
-
-    // Check location permissions
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          errorMessage = "Location permissions are denied.";
-        });
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        errorMessage =
-            "Location permissions are permanently denied. Please enable them in your device settings.";
-      });
-      return;
-    }
-
-    // Get the current position
     try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          errorMessage = "Location services are disabled. Please enable them.";
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          setState(() {
+            errorMessage =
+                "Location permissions are denied. Please enable them in settings.";
+          });
+          return;
+        }
+      }
+
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Get the placemark (address) from the position
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
       );
 
       if (placemarks.isNotEmpty) {
-        locationName = placemarks.first.locality ?? "Unknown";
-        errorMessage = "";
+        setState(() {
+          locationName = placemarks.first.locality ?? "Unknown";
+          errorMessage = "";
+        });
       } else {
         setState(() {
           errorMessage = "No placemarks found.";
@@ -92,28 +79,53 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _onItemTapped(int index) {
+  void _onNavItemTapped(int index) {
     setState(() {
-      _selectedIndex = index;
+      _currentIndex = index;
     });
+
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AppointmentsPage(),
+        ),
+      );
+    } else if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SalonOnboardingScreen(),
+        ),
+      );
+    } else if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(
+            actions: [
+              SignedOutAction((context) {
+                Navigator.pop(context);
+              })
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Define the list of pages to display for each bottom navigation bar item
-    List<Widget> pages = [
-      SalonByLocationPage(locationName: locationName),
-      const AppointmentsPage(),
-      const SalonOnboardingScreen(),
-      const ProfileScreen(),
-    ];
-
     return Scaffold(
-      body: Center(
-        child: isLoading
-            ? const CircularProgressIndicator()
-            : errorMessage.isNotEmpty
-                ? Column(
+      appBar: AppBar(
+        title: const Text('Salon App'),
+        automaticallyImplyLeading: false,
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage.isNotEmpty
+              ? Center(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(errorMessage),
@@ -123,27 +135,41 @@ class _HomePageState extends State<HomePage> {
                         child: const Text("Try Again"),
                       ),
                     ],
-                  )
-                : pages[_selectedIndex], // Display the corresponding page
-      ),
+                  ),
+                )
+              : SalonByLocationPage(locationName: locationName),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
+        currentIndex: _currentIndex,
+        onTap: _onNavItemTapped,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(
+              Icons.home,
+              color: Colors.black,
+            ),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
+            icon: Icon(
+              Icons.calendar_today,
+              color: Colors.black,
+            ),
             label: 'Appointments',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.storefront),
+            icon: Icon(
+              Icons.storefront,
+              color: Colors.black,
+            ),
             label: 'Onboarding',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(
+              Icons.person,
+              color: Colors.black,
+            ),
             label: 'Profile',
           ),
         ],
