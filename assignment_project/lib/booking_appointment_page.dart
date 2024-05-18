@@ -4,32 +4,58 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class CustomTimePickerDialog extends StatelessWidget {
   final ValueChanged<TimeOfDay> onTimeSelected;
+  final String stylistName;
+  final DateTime date;
+  final String salonId;
 
-  CustomTimePickerDialog({required this.onTimeSelected});
+  CustomTimePickerDialog({
+    required this.onTimeSelected,
+    required this.stylistName,
+    required this.date,
+    required this.salonId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Generating list of times with 30 mins intervals from 9:00 am to 5:00 pm
-    final times = List.generate(
-      16, // 16 half hours slots from 9:00 am to 5:00 pm
-      (index) {
-        final hour = 9 + (index / 2).floor();
-        final minute = index.isEven ? 0 : 30;
-        return TimeOfDay(hour: hour, minute: minute);
-      },
-    );
+    // Fetch booked appointments for the stylist on the selected date
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('appointments')
+          .where('salonId', isEqualTo: salonId)
+          .where('stylistName', isEqualTo: stylistName)
+          .where('date', isEqualTo: date.toString().substring(0, 10))
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return CircularProgressIndicator();
 
-    return SimpleDialog(
-      title: Text("Select Time"),
-      children: times.map((time) {
-        return SimpleDialogOption(
-          onPressed: () {
-            onTimeSelected(time);
-            Navigator.pop(context);
+        List<TimeOfDay> bookedTimes = snapshot.data!.docs.map((doc) {
+          DateTime dt =
+              (doc.data() as Map<String, dynamic>)['dateTime'].toDate();
+          return TimeOfDay(hour: dt.hour, minute: dt.minute);
+        }).toList();
+
+        final times = List.generate(
+          16,
+          (index) {
+            final hour = 9 + (index ~/ 2);
+            final minute = index % 2 == 0 ? 0 : 30;
+            return TimeOfDay(hour: hour, minute: minute);
           },
-          child: Text(time.format(context)),
+        ).where((element) => !bookedTimes.contains(element)).toList();
+
+        return SimpleDialog(
+          title: Text("Select Time"),
+          children: times.map((time) {
+            return SimpleDialogOption(
+              onPressed: () {
+                onTimeSelected(time);
+                Navigator.pop(context);
+              },
+              child: Text(time.format(context)),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
@@ -47,6 +73,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
   Map<String, dynamic>? selectedService;
+  String? selectedStylist; // Simple string to hold the selected stylist's name
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
@@ -64,6 +91,13 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   }
 
   Future<void> _selectTime(BuildContext context) async {
+    if (selectedDate == null || selectedStylist == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Please select a date and stylist first.")),
+      );
+      return;
+    }
+
     await showDialog(
       context: context,
       builder: (context) {
@@ -73,6 +107,9 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
               selectedTime = time;
             });
           },
+          stylistName: selectedStylist!,
+          date: selectedDate!,
+          salonId: widget.salon['id'],
         );
       },
     );
@@ -81,11 +118,12 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   Future<void> _bookAppointment() async {
     if (selectedDate == null ||
         selectedTime == null ||
-        selectedService == null) {
+        selectedService == null ||
+        selectedStylist == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Please select a date, time, and service for the appointment.'),
+              'Please select a date, time, service, and stylist for the appointment.'),
         ),
       );
       return;
@@ -101,7 +139,6 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       return;
     }
 
-    // Ensure the selected time is within business hours
     if (selectedTime!.hour < 9 || selectedTime!.hour >= 17) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -120,11 +157,11 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       selectedTime!.minute,
     );
 
-    // Check for conflicting appointments at this time slot
     final appointmentConflict = await FirebaseFirestore.instance
         .collection('appointments')
         .where('salonId', isEqualTo: widget.salon['id'])
         .where('dateTime', isEqualTo: Timestamp.fromDate(appointmentDateTime))
+        .where('stylistName', isEqualTo: selectedStylist)
         .get();
 
     if (appointmentConflict.docs.isNotEmpty) {
@@ -140,8 +177,9 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       'salonId': widget.salon['id'],
       'dateTime': Timestamp.fromDate(appointmentDateTime),
       'userId': user.uid,
-      'service': selectedService!['name'], // Including selected service name
-      'price': selectedService!['price'] // Including selected service price
+      'service': selectedService!['name'],
+      'price': selectedService!['price'],
+      'stylistName': selectedStylist, // Just saving the name as a string
     };
 
     final appointmentRef =
@@ -163,23 +201,20 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Assuming 'services' is an array of maps each containing 'name' and 'prices'
     final List<Map<String, dynamic>> services =
         List<Map<String, dynamic>>.from(widget.salon['services'] ?? []);
+    final List<String> stylists = List<String>.from(
+        widget.salon['stylists'] ?? []); // Convert to list of strings
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Book Appointment'),
-      ),
+      appBar: AppBar(title: const Text('Book Appointment')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Salon: ${widget.salon['name']}',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            Text('Salon: ${widget.salon['name']}',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             DropdownButton<Map<String, dynamic>>(
               value: selectedService,
@@ -193,16 +228,29 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                   (Map<String, dynamic> service) {
                 return DropdownMenuItem<Map<String, dynamic>>(
                   value: service,
-                  child: Text(
-                      "${service['name'].toString()} - \$${service['price'].toString()}"),
+                  child: Text("${service['name']} - \$${service['price']}"),
                 );
               }).toList(),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Select Date',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            DropdownButton<String>(
+              value: selectedStylist,
+              hint: Text("Select Stylist"),
+              onChanged: (String? newValue) {
+                setState(() {
+                  selectedStylist = newValue;
+                });
+              },
+              items: stylists.map<DropdownMenuItem<String>>((String stylist) {
+                return DropdownMenuItem<String>(
+                  value: stylist,
+                  child: Text(stylist),
+                );
+              }).toList(),
             ),
+            const SizedBox(height: 16),
+            const Text('Select Date',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () => _selectDate(context),
@@ -213,10 +261,8 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Select Time',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            const Text('Select Time',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () => _selectTime(context),
