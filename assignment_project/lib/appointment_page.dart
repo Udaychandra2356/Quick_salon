@@ -91,6 +91,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             final salonId = appointmentData['salonId'];
             final timestamp = appointmentData['dateTime'] as Timestamp?;
             final dateTime = timestamp?.toDate();
+            final service = appointmentData['service'] ?? 'No service selected';
+            final price = appointmentData['price'] ?? 'No price set';
+            final appointmentId = appointmentDoc.id;
 
             return ListTile(
               title: FutureBuilder<DocumentSnapshot>(
@@ -116,6 +119,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                     children: [
                       Text(salonName),
                       Text(formattedDate),
+                      Text('Service: $service'),
+                      Text('Price: $price'),
+                      Text('Appointment ID: $appointmentId'),
                     ],
                   );
                 },

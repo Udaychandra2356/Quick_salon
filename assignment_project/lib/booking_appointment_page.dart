@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 
 class CustomTimePickerDialog extends StatelessWidget {
   final ValueChanged<TimeOfDay> onTimeSelected;
@@ -47,6 +46,7 @@ class BookAppointmentPage extends StatefulWidget {
 class _BookAppointmentPageState extends State<BookAppointmentPage> {
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
+  Map<String, dynamic>? selectedService;
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
@@ -79,10 +79,13 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   }
 
   Future<void> _bookAppointment() async {
-    if (selectedDate == null || selectedTime == null) {
+    if (selectedDate == null ||
+        selectedTime == null ||
+        selectedService == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a date and time for the appointment.'),
+          content: Text(
+              'Please select a date, time, and service for the appointment.'),
         ),
       );
       return;
@@ -137,6 +140,8 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
       'salonId': widget.salon['id'],
       'dateTime': Timestamp.fromDate(appointmentDateTime),
       'userId': user.uid,
+      'service': selectedService!['name'], // Including selected service name
+      'price': selectedService!['price'] // Including selected service price
     };
 
     final appointmentRef =
@@ -158,6 +163,10 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Assuming 'services' is an array of maps each containing 'name' and 'prices'
+    final List<Map<String, dynamic>> services =
+        List<Map<String, dynamic>>.from(widget.salon['services'] ?? []);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Book Appointment'),
@@ -170,6 +179,24 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
             Text(
               'Salon: ${widget.salon['name']}',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            DropdownButton<Map<String, dynamic>>(
+              value: selectedService,
+              hint: const Text("Select Service"),
+              onChanged: (Map<String, dynamic>? newValue) {
+                setState(() {
+                  selectedService = newValue;
+                });
+              },
+              items: services.map<DropdownMenuItem<Map<String, dynamic>>>(
+                  (Map<String, dynamic> service) {
+                return DropdownMenuItem<Map<String, dynamic>>(
+                  value: service,
+                  child: Text(
+                      "${service['name'].toString()} - \$${service['price'].toString()}"),
+                );
+              }).toList(),
             ),
             const SizedBox(height: 16),
             const Text(
